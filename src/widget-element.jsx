@@ -17,7 +17,7 @@ class MyWidget extends HTMLElement {
     shadow.appendChild(mount);
 
     ReactDOM.createRoot(mount).render(
-      <App apiKey={this.getAttribute("api-key")} />
+      <App apiKey={this.getAttribute("id")} />
     );
   }
 }
