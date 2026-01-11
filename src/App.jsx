@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { issueWidgetToken, sendMessage } from './utils/apis';
+import { v4 as uuidv4 } from 'uuid';
 
 let VALID_TOKEN = null;
 
 export default function App({ id = 'chat-widget' }) {
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState(null);
+  const [tempssid, setTempssid] = useState('');
   const [loading, setLoading] = useState(false);
   const portalRef = useRef(null);
   const [message, setMessage] = useState('');
@@ -20,18 +23,59 @@ export default function App({ id = 'chat-widget' }) {
     }
   };
 
-  
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messageList]);
 
+  useEffect(() => {
+    if (!token) {
+      console.log('got the token');
+      let ws;
+      let reconnectTimeout;
+      const connect = () => {
+        // ws = new WebSocket(`wss://widget-web-socket-temp-210250062313.asia-south1.run.app/ws/123456`);
+        const ssId = uuidv4();
+        setTempssid(ssId);
+        ws = new WebSocket(
+          `wss://message-web-socket-v2-210250062313.asia-south1.run.app/ws/${ssId}`
+        );
+        ws.onopen = () => console.log('✅ WebSocket connected');
+        ws.onmessage = (event) => {
+          console.log('Message:', event.data);
+           setMessageList((prevMessages) => [
+        ...prevMessages,
+        { text: event.data, sender: 'bot', msgId: prevMessages.length + 1 }
+      ]);
+        };
+        ws.onclose = () => {
+          // console.log("❌ WebSocket closed. Reconnecting in 2s...");
+          setTimeout(connect, 2000);
+        };
+        ws.onerror = () => ws.close();
+      };
+
+      connect();
+      // setWs(ws);
+
+      return () => {
+        clearTimeout(reconnectTimeout);
+        ws.close();
+      };
+    } else {
+      console.log('no token');
+    }
+  }, []);
+
   //Dummy flow
   // STEP 1: get token when widget loads
-  useEffect(() => {
-    const res = issueWidgetToken(); // pretend API call
-    setToken(res.token);
-  }, []);
+  // useEffect(() => {
+  //   const fetchToken = async () => {
+  //     const res = await issueWidgetToken(); // pretend API call
+  //     console.log('token received:', res);
+  //     setToken(res.access_token);
+  //   };
+  //   fetchToken();
+  // }, []);
 
   // STEP 2: send message using token
   const handleMessageSend = async () => {
@@ -44,11 +88,16 @@ export default function App({ id = 'chat-widget' }) {
     ]);
 
     try {
-      const response = proxyChatRequest(token, message);
-      setMessageList((prevMessages) => [
-        ...prevMessages,
-        { text: response.reply, sender: 'bot', msgId: prevMessages.length + 1 }
-      ]);
+      if (tempssid) {
+        const response = await sendMessage(message, tempssid);
+      }
+      // const response = proxyChatRequest(token, message);
+      // const response = await sendMessage(message,tempssid);
+      // console.log("response:msg sent",response)
+      // setMessageList((prevMessages) => [
+      //   ...prevMessages,
+      //   { text: response.reply, sender: 'bot', msgId: prevMessages.length + 1 }
+      // ]);
     } catch (err) {
       setMessageList((prevMessages) => [
         ...prevMessages,
@@ -199,16 +248,16 @@ export default function App({ id = 'chat-widget' }) {
 }
 
 // STEP 1: issue short-lived token
-export function issueWidgetToken() {
-  VALID_TOKEN = 'temp-token-' + Math.random().toString(36).slice(2);
+// export function issueWidgetToken() {
+//   VALID_TOKEN = 'temp-token-' + Math.random().toString(36).slice(2);
 
-  console.log('🔐 Server issued token:', VALID_TOKEN);
+//   console.log('🔐 Server issued token:', VALID_TOKEN);
 
-  return {
-    token: VALID_TOKEN,
-    expiresIn: 60 // seconds
-  };
-}
+//   return {
+//     token: VALID_TOKEN,
+//     expiresIn: 60 // seconds
+//   };
+// }
 
 // STEP 2: proxy chat request
 export function proxyChatRequest(token, message) {
