@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "neo-ji-152ee"
+  },
+  "targets": {
+    "neo-ji-152ee": {
+      "hosting": {
+        "neo-ji-chat-widget": [
+          "neo-ji-chat-widget"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
